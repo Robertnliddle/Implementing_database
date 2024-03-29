@@ -4,51 +4,42 @@ from flask import request
 from manager import manager
 from flask_sqlalchemy import SQLAlchemy
 
-from database import (
-    load_balance,
-    load_history,
-    load_warehouse,
-    save_balance,
-    save_history,
-    save_warehouse
-)
-
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URL'] = 'sqlite///students.sqlite3'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite///students.sqlite3'
 
 db = SQLAlchemy()
 db.init_app(app)
 
 
-class Product(db.model):
-    id = db.column(db.interger, primary_key=True)
-    name = db.column(db.string(127))
-    quantity = db.column(db.interger)
+class Product(db.Model):
+    id = db.Column(db.Interger, primary_key=True)
+    name = db.Column(db.String(127))
+    quantity = db.Column(db.Interger)
 
 
-class History(db.model):
-    id = db.column(db.interger, primary_key=True)
-    entry = db.column(db.string(1023))
+class History(db.Model):
+    id = db.Column(db.Interger, primary_key=True)
+    entry = db.Column(db.String(1023))
 
 
-class Account(db.model):
-    id = db.column(db.interger, primary_key=True)
-    amount = db.column(db.interger)
+class Account(db.Model):
+    id = db.Column(db.Interger, primary_key=True)
+    amount = db.Column(db.Interger)
 
 
 with app.app_context():
     db.create_all()
 
 
-def load_balance_account():
+def load_balance():
     account = db.session.query(Account).first()
     if not account:
         account = Account(amount=0)
     return account.amount
 
 
-def save_balance_money(account_money):
+def save_balance(account_money):
     account = db.session.query(Account).first()
     if not account:
         account = Account(amount=0)
@@ -57,15 +48,15 @@ def save_balance_money(account_money):
     db.session.commit()
 
 
-def load_inventory():
+def load_warehouse():
     products = db.session.query(Product).all()
     all_products = {}
     for p in products:
         all_products[p.name] = p.quantity
-    return products
+    return all_products
 
 
-def save_inventory(inventory_products):
+def save_warehouse(inventory_products):
     for name, quant in inventory_products.items():
         prod = db.session.query(Product).filter(Product.name == name)
         if not prod:
@@ -75,22 +66,33 @@ def save_inventory(inventory_products):
     db.session.commit()
 
 
+def load_history():
+    return [e.entry for e in db.session.query(History).all()]
+
+
+def save_history(history):
+    if history:
+        h = History(entry=history[-1])
+        db.session.add(h)
+        db.session.commit()
+
+
 @app.route("/", methods=["GET", "POST"])
 @app.route("/balance", methods=["GET", "POST"])
 def index():
-    account = load_balance()
-    inventory = load_warehouse()
+    balance = load_balance()
+    warehouse = load_warehouse()
     history = load_history()
     if request.method == "POST":
         actions = request.form.get("action")
         value = int(request.form.get("value", 0))
 
-        account, history, inventory = manager.execute("balance", inventory, account, history,
+        balance, history, warehouse = manager.execute("balance", balance, history, warehouse,
                                                       actions=actions, value=value)
-        save_balance(account)
+        save_balance(balance)
         save_history(history)
-        save_warehouse(inventory)
-    return render_template("index.html", account=account, inventory=inventory)
+        save_warehouse(warehouse)
+    return render_template("index.html", account=balance, inventory=warehouse)
 
 
 @app.route("/purchase", methods=["GET", "POST"])
