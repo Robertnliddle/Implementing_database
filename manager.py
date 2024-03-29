@@ -8,12 +8,12 @@ class Manager:
 
         return wrapper
 
-    def execute(self, name, inventory, balance, history, **kwargs):
+    def execute(self, name, balance, history, warehouse, **kwargs):
         if name not in self.actions:
             print(f"Error: {name} not in actions")
-            return inventory, balance, history
+            return balance, history, warehouse
         else:
-            return self.actions[name](balance, inventory, history, **kwargs)
+            return self.actions[name](balance, history, warehouse, **kwargs)
 
 
 manager = Manager()
